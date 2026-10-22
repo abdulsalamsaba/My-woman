@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Distance Hearts</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pink: #ff4d8d;
+      --pink-dark: #e11d74;
+      --purple: #8b5cf6;
+      --dark: #1e1b2e;
+      --gray: #6b7280;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Inter', sans-serif; background: #0f0a1a; color: var(--dark); min-height: 100vh; overflow-x: hidden; }
+    .screen { display: none; min-height: 100vh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    #loginScreen {
+      background: linear-gradient(160deg, #1a0b2e 0%, #2d1b4e 45%, #4a1942 100%);
+      align-items: center; justify-content: center; padding: 24px; position: relative; overflow: hidden;
+    }
+    #loginScreen::before {
+      content: ''; position: absolute; width: 380px; height: 380px;
+      background: radial-gradient(circle, rgba(255,77,141,0.28) 0%, transparent 70%);
+      top: -120px; right: -100px; border-radius: 50%;
+    }
+    .login-content { position: relative; z-index: 2; width: 100%; max-width: 380px; text-align: center; }
+    .login-logo { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 700; color: white; margin-bottom: 8px; }
+    .login-logo span { background: linear-gradient(135deg, #ff4d8d, #ff8dc7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .login-sub { color: rgba(255,255,255,0.7); font-size: 0.95rem; margin-bottom: 32px; font-weight: 500; }
+    .login-card { background: rgba(255,255,255,0.98); border-radius: 28px; padding: 32px 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
+    .login-card h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--dark); }
+    .login-card p { font-size: 0.85rem; color: var(--gray); margin-bottom: 22px; }
+    .input-group { margin-bottom: 14px; text-align: left; }
+    .input-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--gray); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-group input { width: 100%; padding: 14px 16px; border: 2px solid #f3e8ff; border-radius: 14px; font-size: 1rem; font-family: inherit; font-weight: 600; outline: none; background: #faf5ff; }
+    .input-group input:focus { border-color: var(--pink); background: white; }
+    .btn-primary { width: 100%; padding: 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #ff4d8d, #e11d74); color: white; font-size: 1.05rem; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 8px; box-shadow: 0 8px 20px rgba(255,77,141,0.35); }
+    .btn-ghost { width: 100%; padding: 14px; border: 2px solid #f3e8ff; border-radius: 14px; background: transparent; color: var(--purple); font-size: 0.95rem; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 10px; }
+    .login-error { color: #ef4444; font-size: 0.85rem; font-weight: 600; margin-top: 14px; min-height: 20px; }
+    .login-footer { margin-top: 28px; color: rgba(255,255,255,0.5); font-size: 0.8rem; }
+
+    #appScreen { background: #fdf2f8; }
+    .app-header { background: white; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 100; }
+    .app-header-left h1 { font-size: 1.15rem; font-weight: 800; color: var(--dark); }
+    .app-header-left p { font-size: 0.78rem; color: var(--gray); font-weight: 500; }
+    .leave-btn { background: #fce7f3; border: none; padding: 8px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: var(--pink); cursor: pointer; }
+
+    .nav-tabs { display: flex; gap: 5px; padding: 10px 10px 4px; background: #fdf2f8; position: sticky; top: 62px; z-index: 90; overflow-x: auto; }
+    .nav-tab { flex-shrink: 0; padding: 10px 14px; border: none; border-radius: 12px; background: white; font-size: 0.82rem; font-weight: 700; color: var(--gray); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .nav-tab.active { background: linear-gradient(135deg, #ff4d8d, #e11d74); color: white; box-shadow: 0 4px 14px rgba(255,77,141,0.3); }
+
+    .panel { display: none; padding: 12px 12px 40px; }
+    .panel.active { display: block; }
+    .card { background: white; border-radius: 20px; padding: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 12px; }
+    .card-header { text-align: center; margin-bottom: 16px; }
+    .card-header h2 { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: var(--dark); }
+    .card-header p { font-size: 0.82rem; color: var(--gray); margin-top: 3px; }
+
+    .modes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+    .mode-btn { padding: 7px 12px; border-radius: 50px; border: 2px solid #f3e8ff; background: white; font-size: 0.78rem; font-weight: 700; color: var(--gray); cursor: pointer; }
+    .mode-btn.active { background: var(--pink); border-color: var(--pink); color: white; }
+    .mode-btn.active.spicy { background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #dc2626; }
+
+    .question-box { background: linear-gradient(145deg, #fdf2f8, #f5f3ff); border-radius: 16px; padding: 22px 16px; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 2px dashed #f9a8d4; margin-bottom: 14px; position: relative; }
+    .q-badge { position: absolute; top: 10px; right: 10px; background: var(--pink); color: white; font-size: 0.65rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; }
+    .q-label { font-size: 0.72rem; font-weight: 700; color: var(--pink); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+    .q-text { font-size: 1.05rem; font-weight: 600; line-height: 1.45; color: var(--dark); }
+
+    .action-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .action-btn { flex: 1; padding: 13px; border: none; border-radius: 12px; font-size: 0.9rem; font-weight: 700; color: white; cursor: pointer; font-family: inherit; }
+    .action-btn.truth { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .action-btn.dare { background: linear-gradient(135deg, #ff4d8d, #e11d74); }
+    .action-btn.random { width: 100%; background: linear-gradient(135deg, #6366f1, #4f46e5); margin-bottom: 14px; }
+
+    .answer-section { border-top: 1px solid #f3e8ff; padding-top: 14px; }
+    .answer-section label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--gray); margin-bottom: 6px; }
+    .answer-section textarea { width: 100%; padding: 12px; border: 2px solid #f3e8ff; border-radius: 12px; font-family: inherit; font-size: 0.92rem; resize: none; min-height: 70px; outline: none; background: #faf5ff; margin-bottom: 8px; }
+    .answer-section textarea:focus { border-color: var(--pink); background: white; }
+    .send-answer-btn { width: 100%; padding: 13px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ff4d8d, #e11d74); color: white; font-weight: 700; font-size: 0.92rem; cursor: pointer; font-family: inherit; }
+
+    .love-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .love-btn { padding: 18px 10px; border: 2px solid #fce7f3; border-radius: 16px; background: white; font-size: 0.88rem; font-weight: 700; color: var(--dark); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .love-btn .emoji { font-size: 1.7rem; }
+    .notification-box { background: linear-gradient(135deg, #fdf2f8, #f5f3ff); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 14px; min-height: 50px; font-weight: 600; color: var(--pink-dark); border: 1px solid #f9a8d4; }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 6px 2px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .chat-bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 0.9rem; line-height: 1.4; }
+    .chat-bubble.me { align-self: flex-end; background: linear-gradient(135deg, #ff4d8d, #e11d74); color: white; border-bottom-right-radius: 4px; }
+    .chat-bubble.them { align-self: flex-start; background: white; color: var(--dark); border: 1px solid #f3e8ff; border-bottom-left-radius: 4px; }
+    .chat-bubble .sender { font-size: 0.68rem; font-weight: 700; opacity: 0.8; margin-bottom: 2px; }
+    .chat-bubble .time { font-size: 0.65rem; opacity: 0.7; margin-top: 3px; }
+    .chat-input-area { display: flex; gap: 8px; background: white; padding: 8px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .chat-input-area input { flex: 1; border: none; outline: none; font-size: 0.92rem; font-family: inherit; padding: 8px; }
+    .chat-input-area button { background: var(--pink); border: none; color: white; width: 42px; height: 42px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+
+    .answers-list { display: flex; flex-direction: column; gap: 10px; }
+    .answer-card { background: white; border-radius: 14px; padding: 14px; border-left: 4px solid var(--pink); box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+    .answer-card .who { font-size: 0.78rem; font-weight: 700; color: var(--pink); margin-bottom: 3px; }
+    .answer-card .q { font-size: 0.8rem; color: var(--gray); font-style: italic; margin-bottom: 6px; line-height: 1.3; }
+    .answer-card .a { font-size: 0.92rem; font-weight: 600; color: var(--dark); line-height: 1.4; }
+    .empty-state { text-align: center; padding: 30px 16px; color: var(--gray); font-size: 0.88rem; }
+
+    .meter-bar { height: 18px; background: #f3e8ff; border-radius: 20px; overflow: hidden; margin: 12px 0; }
+    .meter-fill { height: 100%; background: linear-gradient(90deg, #ff4d8d, #e11d74); border-radius: 20px; width: 0%; transition: width 0.8s ease; }
+    .meter-score { text-align: center; font-size: 2rem; font-weight: 800; color: var(--pink); margin: 8px 0; }
+    .challenge-box { background: linear-gradient(135deg, #fdf2f8, #f5f3ff); border-radius: 14px; padding: 16px; text-align: center; border: 1px solid #f9a8d4; }
+    .challenge-box p { font-weight: 600; font-size: 0.95rem; line-height: 1.4; margin-bottom: 12px; }
+
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--dark); color: white; padding: 12px 22px; border-radius: 50px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 200; max-width: 90%; text-align: center; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="loginScreen" class="screen active">
+    <div class="login-content">
+      <div class="login-logo">Distance <span>Hearts</span></div>
+      <div class="login-sub">Play, chat & stay close — no matter the distance</div>
+      <div class="login-card">
+        <h2>Join your room</h2>
+        <p>Create a room or enter a code to play together</p>
+        <div class="input-group">
+          <label>Your Name</label>
+          <input type="text" id="usernameInput" placeholder="e.g. Alex" maxlength="15" autocomplete="off">
+        </div>
+        <div class="input-group">
+          <label>Room Code</label>
+          <input type="text" id="roomInput" placeholder="e.g. LOVE23" maxlength="8" style="text-transform:uppercase" autocomplete="off">
+        </div>
+        <button class="btn-primary" onclick="joinRoom()">Enter Room</button>
+        <button class="btn-ghost" onclick="createRoom()">Create New Room</button>
+        <div class="login-error" id="loginError"></div>
+      </div>
+      <div class="login-footer">Made for couples who refuse to let distance win</div>
+    </div>
+  </div>
+
+  <div id="appScreen" class="screen">
+    <div class="app-header">
+      <div class="app-header-left">
+        <h1>Distance Hearts</h1>
+        <p id="headerInfo">—</p>
+      </div>
+      <button class="leave-btn" onclick="logout()">Leave</button>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-panel="games">Games</button>
+      <button class="nav-tab" data-panel="love">Love</button>
+      <button class="nav-tab" data-panel="chat">Chat</button>
+      <button class="nav-tab" data-panel="answers">Answers</button>
+      <button class="nav-tab" data-panel="meter">Meter</button>
+    </div>
+
+    <div class="panel active" id="games">
+      <div class="card">
+        <div class="card-header"><h2>Truth or Dare</h2><p>Both of you see the same question</p></div>
+        <div class="modes">
+          <button class="mode-btn active" data-mode="soft">Soft</button>
+          <button class="mode-btn" data-mode="flirty">Flirty</button>
+          <button class="mode-btn" data-mode="spicy">Spicy</button>
+          <button class="mode-btn" data-mode="deep">Deep</button>
+        </div>
+        <div class="question-box" id="questionBox">
+          <div class="q-label">Ready when you are</div>
+          <div class="q-text">Tap Truth, Dare or Random</div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn truth" onclick="drawQuestion('truth')">Truth</button>
+          <button class="action-btn dare" onclick="drawQuestion('dare')">Dare</button>
+        </div>
+        <button class="action-btn random" onclick="drawQuestion('random')">Random</button>
+        <div class="answer-section">
+          <label>Your Answer</label>
+          <textarea id="answerInput" placeholder="Type your answer..."></textarea>
+          <button class="send-answer-btn" onclick="submitAnswer()">Send Answer</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Would You Rather</h2></div>
+        <div class="question-box" id="wyrBox"><div class="q-text">Tap for a dilemma</div></div>
+        <button class="action-btn random" onclick="drawWYR()">New Dilemma</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Never Have I Ever</h2></div>
+        <div class="question-box" id="nhieBox"><div class="q-text">Tap for the next one</div></div>
+        <button class="action-btn random" onclick="drawNHIE()">Next One</button>
+      </div>
+    </div>
+
+    <div class="panel" id="love">
+      <div class="card">
+        <div class="card-header"><h2>Send Love</h2><p>Tap to send a feeling — they see it live</p></div>
+        <div class="notification-box" id="loveNotif">No recent love signals yet</div>
+        <div class="love-grid">
+          <button class="love-btn" onclick="sendLove('hug')"><span class="emoji">🤗</span> Virtual Hug</button>
+          <button class="love-btn" onclick="sendLove('kiss')"><span class="emoji">💋</span> Blow a Kiss</button>
+          <button class="love-btn" onclick="sendLove('miss')"><span class="emoji">🥺</span> I Miss You</button>
+          <button class="love-btn" onclick="sendLove('love')"><span class="emoji">❤️</span> I Love You</button>
+          <button class="love-btn" onclick="sendLove('think')"><span class="emoji">💭</span> Thinking of You</button>
+          <button class="love-btn" onclick="sendLove('proud')"><span class="emoji">🌟</span> I'm Proud of You</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Daily Challenge</h2></div>
+        <div class="challenge-box">
+          <p id="challengeText">Loading...</p>
+          <button class="send-answer-btn" onclick="newChallenge()">New Challenge</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="chat">
+      <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 160px);padding:14px;">
+        <div class="card-header" style="margin-bottom:8px;"><h2>Live Chat</h2></div>
+        <div class="chat-messages" id="chatBox"></div>
+        <div class="chat-input-area">
+          <input type="text" id="chatInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendChat()">
+          <button onclick="sendChat()">Go</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="answers">
+      <div class="card">
+        <div class="card-header"><h2>Shared Answers</h2><p>Answers from both of you</p></div>
+        <div class="answers-list" id="answersList"><div class="empty-state">No answers yet</div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="meter">
+      <div class="card">
+        <div class="card-header"><h2>Love Meter</h2><p>Answer a few questions together</p></div>
+        <div class="meter-score" id="meterScore">0%</div>
+        <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+        <p style="text-align:center;font-size:0.85rem;color:var(--gray);margin-bottom:16px;" id="meterLabel">Start answering to fill the meter</p>
+        <div class="question-box" id="meterQ"><div class="q-text">Tap below to begin</div></div>
+        <button class="action-btn random" onclick="nextMeterQ()">Next Question</button>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="action-btn truth" style="background:#22c55e" onclick="answerMeter(true)">Yes</button>
+          <button class="action-btn dare" style="background:#ef4444" onclick="answerMeter(false)">No</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAycyGHXMWL-wvVkiaRh8BNJKZHTYEP3ew",
+      authDomain: "distancehearts.firebaseapp.com",
+      databaseURL: "https://distancehearts-default-rtdb.firebaseio.com",
+      projectId: "distancehearts",
+      storageBucket: "distancehearts.firebasestorage.app",
+      messagingSenderId: "792287007634",
+      appId: "1:792287007634:web:1f32647d95a27e38bc674b"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let username = "", roomCode = "", currentMode = "soft", currentQuestion = "";
+    let meterScore = 0, meterIndex = 0;
+
+    const TOD = {
+      soft: { truth: ["What's one small thing I do that always makes you smile?","What's your favorite memory of us so far?","What song instantly makes you think of me?","What's something you're looking forward to doing together?","What's the cutest thing I've ever said to you?","If we could teleport for one hour right now, what would we do?","What's one thing about long distance that has made us stronger?","When do you feel closest to me even though we're apart?"], dare: ["Send a voice note saying three things you love about me.","Take a selfie right now and describe it.","Do your best impression of me for 15 seconds.","Write a short 3-line poem about us.","Show me the view from your window.","Sing the chorus of a song that reminds you of us."] },
+      flirty: { truth: ["What's the first thing you'd do if I walked through your door right now?","What's a compliment you've been holding back?","When was the last time you thought about kissing me?","What's one outfit of mine you secretly love?","What's the most attractive thing about my personality?","Have you ever dreamed about me? Tell me."], dare: ["Send a voice note in your most seductive voice.","Blow a kiss to the camera.","Describe exactly how you'd greet me at the airport.","Write a flirty text as if we just started dating.","Tell me three things you'd whisper in my ear."] },
+      spicy: { truth: ["What's a fantasy involving us that you've thought about lately?","What's the hottest memory you have of us?","What's one thing you'd love to try when we're together again?","What's something I do that turns you on without trying?","If we had one night with no rules, what would you want?","What's a secret desire you've never told me?","Describe the first 10 minutes after we reunite."], dare: ["Describe what you'd do if I was lying next to you right now.","Tell me your current fantasy in detail.","Whisper three dirty things you'd say to me.","Rate how much you're missing the physical side from 1-10.","Describe the outfit you'd want me in when I arrive."] },
+      deep: { truth: ["What's something about the distance that still scares you?","What's one sacrifice you've made for us that I might not see?","When do you feel most secure in our relationship?","What's a fear you have about our future?","How has long distance changed the way you love?","What's one thing you need more of from me right now?"], dare: ["Tell me one thing you're grateful for about us today.","Look into the camera for 20 seconds without speaking.","Tell me about a hard day and how you wished I was there.","Describe the version of us you're fighting for."] }
+    };
+    const WYR = ["Would you rather relive our first date or fast-forward to living in the same city?","Would you rather have one perfect week together every 6 months, or short visits more often?","Would you rather only communicate by voice notes for a month, or only by video calls?","Would you rather I surprise you at your door tomorrow, or plan the perfect reunion trip?","Would you rather know exactly when the distance ends, or keep the mystery?","Would you rather spend a whole day talking, or a whole day in comfortable silence together?","Would you rather have matching tattoos or matching phone wallpapers of us?","Would you rather the first night we reunite be soft & romantic, or intense & passionate?"];
+    const NHIE = ["Never have I ever fallen asleep on a video call with you.","Never have I ever screenshotted one of our conversations to re-read later.","Never have I ever cried because of the distance.","Never have I ever planned what I'd say the next time we meet.","Never have I ever stayed up way too late just to talk to you.","Never have I ever gotten jealous of people who live near their partner.","Never have I ever looked at plane tickets just to daydream.","Never have I ever felt closer to you on a call than some people feel in person."];
+    const CHALLENGES = ["Send each other a voice note saying what you're most grateful for today.","Watch the same sunset or sunrise and describe it to each other.","Write a short letter and read it out loud on call tonight.","Send a photo of something that reminded you of the other person today.","Cook or order the same meal and eat together on video call.","Share one song that currently feels like 'us' and explain why.","Tell each other three things you want to do on the first day you reunite.","Spend 10 minutes just looking at each other on camera without talking."];
+    const METER_QS = ["Do you feel closer because of the distance?","Do you trust me completely?","Would you wait as long as it takes for us?","Do you see a future living together?","Do you feel loved by me even from far away?","Are you proud of how we handle the distance?","Do you think about me every day?","Would you choose me again if we started over?"];
+
+    function showToast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2500); }
+    function createRoom() { const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let code = ""; for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)]; document.getElementById("roomInput").value = code; joinRoom(); }
+
+    function joinRoom() {
+      const name = document.getElementById("usernameInput").value.trim();
+      const room = document.getElementById("roomInput").value.trim().toUpperCase();
+      const err = document.getElementById("loginError");
+      if (name.length < 2) { err.textContent = "Please enter your name"; return; }
+      if (room.length < 3) { err.textContent = "Please enter a room code"; return; }
+      username = name; roomCode = room;
+      db.ref("rooms/" + roomCode + "/users/" + username).set({ name: username, joined: Date.now() });
+      listenChat(); listenAnswers(); listenQuestion(); listenLove(); listenWYR(); listenNHIE();
+      document.getElementById("headerInfo").textContent = username + "  •  Room " + roomCode;
+      document.getElementById("loginScreen").classList.remove("active");
+      document.getElementById("appScreen").classList.add("active");
+      newChallenge(); showToast("Welcome to room " + roomCode);
+    }
+    function logout() { if (roomCode && username) db.ref("rooms/" + roomCode + "/users/" + username).remove(); location.reload(); }
+
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.panel).classList.add("active");
+      });
+    });
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active", "spicy"));
+        btn.classList.add("active");
+        if (btn.dataset.mode === "spicy") btn.classList.add("spicy");
+        currentMode = btn.dataset.mode;
+      });
+    });
+
+    function drawQuestion(type) {
+      let finalType = type === "random" ? (Math.random() < 0.5 ? "truth" : "dare") : type;
+      const list = TOD[currentMode][finalType];
+      const q = list[Math.floor(Math.random() * list.length)];
+      currentQuestion = q;
+      db.ref("rooms/" + roomCode + "/currentQuestion").set({ text: q, type: finalType, mode: currentMode, by: username, time: Date.now() });
+    }
+    function listenQuestion() {
+      db.ref("rooms/" + roomCode + "/currentQuestion").on("value", snap => {
+        const data = snap.val(); if (!data) return;
+        currentQuestion = data.text;
+        document.getElementById("questionBox").innerHTML = `<div class="q-badge">${data.type}</div><div class="q-label">${data.mode} • by ${data.by}</div><div class="q-text">${data.text}</div>`;
+      });
+    }
+    function drawWYR() { const q = WYR[Math.floor(Math.random() * WYR.length)]; db.ref("rooms/" + roomCode + "/wyr").set({ text: q, by: username, time: Date.now() }); }
+    function listenWYR() { db.ref("rooms/" + roomCode + "/wyr").on("value", snap => { const data = snap.val(); if (data) document.getElementById("wyrBox").innerHTML = `<div class="q-text">${data.text}</div>`; }); }
+    function drawNHIE() { const q = NHIE[Math.floor(Math.random() * NHIE.length)]; db.ref("rooms/" + roomCode + "/nhie").set({ text: q, by: username, time: Date.now() }); }
+    function listenNHIE() { db.ref("rooms/" + roomCode + "/nhie").on("value", snap => { const data = snap.val(); if (data) document.getElementById("nhieBox").innerHTML = `<div class="q-text">${data.text}</div>`; }); }
+
+    function submitAnswer() {
+      const text = document.getElementById("answerInput").value.trim();
+      if (!text) { showToast("Write an answer first"); return; }
+      if (!currentQuestion) { showToast("Get a question first"); return; }
+      const key = db.ref("rooms/" + roomCode + "/answers").push().key;
+      db.ref("rooms/" + roomCode + "/answers/" + key).set({ user: username, question: currentQuestion, answer: text, time: Date.now() });
+      document.getElementById("answerInput").value = ""; showToast("Answer sent");
+    }
+    function listenAnswers() {
+      db.ref("rooms/" + roomCode + "/answers").on("value", snap => {
+        const data = snap.val() || {}; const items = Object.values(data).sort((a,b) => b.time - a.time);
+        const list = document.getElementById("answersList");
+        if (!items.length) { list.innerHTML = `<div class="empty-state">No answers yet</div>`; return; }
+        list.innerHTML = items.map(i => `<div class="answer-card"><div class="who">${i.user}</div><div class="q">${i.question}</div><div class="a">${i.answer}</div></div>`).join("");
+      });
+    }
+
+    function sendChat() {
+      const input = document.getElementById("chatInput"); const text = input.value.trim(); if (!text) return;
+      const key = db.ref("rooms/" + roomCode + "/chat").push().key;
+      db.ref("rooms/" + roomCode + "/chat/" + key).set({ user: username, text, time: Date.now() }); input.value = "";
+    }
+    function listenChat() {
+      db.ref("rooms/" + roomCode + "/chat").on("value", snap => {
+        const data = snap.val() || {}; const items = Object.values(data).sort((a,b) => a.time - b.time);
+        const box = document.getElementById("chatBox");
+        box.innerHTML = items.map(m => {
+          const time = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+          return `<div class="chat-bubble ${m.user === username ? 'me' : 'them'}"><div class="sender">${m.user}</div>${m.text}<div class="time">${time}</div></div>`;
+        }).join(""); box.scrollTop = box.scrollHeight;
+      });
+    }
+
+    function sendLove(type) {
+      const messages = { hug: "sent you a warm virtual hug 🤗", kiss: "blew you a kiss 💋", miss: "is missing you right now 🥺", love: "said I love you ❤️", think: "is thinking of you 💭", proud: "is proud of you 🌟" };
+      db.ref("rooms/" + roomCode + "/love").set({ from: username, type, message: messages[type], time: Date.now() });
+      showToast("Sent!");
+    }
+    function listenLove() {
+      db.ref("rooms/" + roomCode + "/love").on("value", snap => {
+        const data = snap.val(); if (!data) return;
+        const el = document.getElementById("loveNotif");
+        if (data.from === username) el.textContent = "You " + data.message;
+        else { el.innerHTML = `<strong>${data.from}</strong> ${data.message}`; showToast(data.from + " " + data.message); }
+      });
+    }
+
+    function newChallenge() { document.getElementById("challengeText").textContent = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)]; }
+
+    function nextMeterQ() {
+      if (meterIndex >= METER_QS.length) { document.getElementById("meterQ").innerHTML = `<div class="q-text">All done! Check your score above.</div>`; return; }
+      document.getElementById("meterQ").innerHTML = `<div class="q-text">${METER_QS[meterIndex]}</div>`;
+    }
+    function answerMeter(yes) {
+      if (meterIndex >= METER_QS.length) return;
+      if (yes) meterScore += 12.5; meterIndex++;
+      document.getElementById("meterScore").textContent = Math.round(meterScore) + "%";
+      document.getElementById("meterFill").style.width = meterScore + "%";
+      if (meterScore >= 80) document.getElementById("meterLabel").textContent = "Strong connection";
+      else if (meterScore >= 50) document.getElementById("meterLabel").textContent = "Growing nicely";
+      else document.getElementById("meterLabel").textContent = "Keep going";
+      nextMeterQ();
+    }
+  </script>
+</body>
+</html>
